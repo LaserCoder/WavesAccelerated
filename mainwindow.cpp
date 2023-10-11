@@ -79,6 +79,8 @@ MainWindow::~MainWindow()
 void MainWindow::makePlot()
 {
     ui->bigPlot->addGraph();
+    // ui->bigPlot->addGraph();
+    // ui->bigPlot->addGraph();
     ui->bigPlot->xAxis->setLabel("x");
     ui->bigPlot->yAxis->setLabel("y");
     ui->bigPlot->xAxis->setRange(0, 1);
@@ -105,22 +107,21 @@ void MainWindow::simulate()
 //    double dz =  8.0000e-07;
 //    double dt = 8.8061e-15;
 //    double Psat = 8.189848267404146e+12;
-    std::thread worker1(refreshGraph, ui);
     auto start = std::chrono::high_resolution_clock::now();
-    double R1 = 0.9;
+    double R1 = 0.09;
     double R2 = 1;
     double c = 299792458;
     double n = 3.3;
     double kpp = -2.000000000000000e-24;
-    double aw = 4;
+    double aw = 400;
     double gammaK = 0;
-    double g0 = 819000000000.4299;
+    double g0 = 819.4299;
     double gc = 1;
     double T1 = 4.0000e-13;
     double T2 = 5.0000e-14;
     double dz =  8.0000e-07;
     double dt = 8.8061e-15;
-    double Psat = 8.189848267404146e+9;
+    double Psat = 8.189848267404146e+12;
     Array<std::complex<double>, 1 , 5001> Ep;
     Array<std::complex<double>, 1 , 5001> Em;
     Array<std::complex<double>, 1 , 5001> Pp;
@@ -137,10 +138,12 @@ void MainWindow::simulate()
     Array<std::complex<double>, 1 , 5001> dEmdt;
     double s = 501.;
     double k = 2;
+    double max = 0;
     for(int x = 0; x < 5001; x++){
-        Ep[x]= (cos(2*M_PI*k/5001.*x*x/5001.)+ii*sin(2*M_PI*k/5001.*x*x/5001.))*10e5;
-        Em[x]= (cos(2*M_PI*k/5001.*x*x/5001.))*10e5;;
+        Ep[x]= cos(2*M_PI*k/5001.*x*x/5001.);
+        Em[x]= 0;
     }
+    std::vector<double> t,p;
     Eigen::ArrayXf x = Eigen::ArrayXf::LinSpaced(5001, 0, 1);
     for(int i = 1; i < 5'000'000 ; i++)
     {
@@ -168,49 +171,44 @@ void MainWindow::simulate()
         dEpdt0 = -c/n*dEpdz;
         dEmdt0 =  c/n*dEmdz;
 
-        dEpdt = c/n*(
-                        -dEpdz
-                        
-                        +(g0/2)*(1-(1/Psat)*(Ep.square() + 2*Em.square()))*Ep
+        dEpdt = c/n*(-dEpdz + ii*kpp/2.*(c/n)*(c/n)*dEp2dz2 - aw/2*Ep + 
+                         -ii*gammaK*(Pp+2*Pm)*Ep + 
+                         g0/2.*(Ep -1/Psat*(Pp+2*Pm)*Ep - T2*dEpdt0 + gc*T2*T2*(c/n)*(c/n)*dEp2dz2 + 
+                     1/Psat*((2*T1+3*T2)*dEmdt0.conjugate()*Em*Ep + (T1+5/2.*T2)*Em.conjugate()*dEmdt0*Ep)));
 
-                        -(aw/2)*Ep
-
-                        +(std::complex<double>(0,1)/2.)*kpp*dEp2dz2
-
-                        +(g0/2)*T2*T2*dEp2dz2
-
-                        +(g0/2/Psat)*((2*T1 + 3*T2)*dEmdt0.conjugate()*Em + (T1 +(5/2.)*T2)*dEmdt0*Em.conjugate())*Ep
-                    );
-
-        dEmdt = c/n*(
-                        -dEmdz
-                        
-                        +(g0/2)*(1-(1/Psat)*(Em.square() + 2*Ep.square()))*Em
-
-                        -(aw/2)*Em
-
-                        +(std::complex<double>(0,1)/2.)*kpp*dEm2dz2
-
-                        +(g0/2)*T2*T2*dEm2dz2
-
-                        +(g0/2/Psat)*((2*T1 + 3*T2)*dEpdt0.conjugate()*Ep + (T1 +(5/2.)*T2)*dEpdt0*Ep.conjugate())*Em
-                    );
-        Ep = Ep + dEpdt0*dt;
-        Em = Em + dEmdt0*dt;
-        if(i%2 == 0)
+        dEmdt = c/n*(dEmdz + ii*kpp/2.*(c/n)*(c/n)*dEm2dz2 - aw/2*Em + 
+                     -ii*gammaK*(Pm+2*Pp)*Em + 
+                         g0/2.*( Em -1/Psat*(Pm+2*Pp)*Em - T2*dEmdt0 + gc*T2*T2*(c/n)*(c/n)*dEm2dz2 + 
+                     1/Psat*((2*T1+3*T2)*dEpdt0.conjugate()*Ep*Em + (T1+5/2.*T2)*Ep.conjugate()*dEpdt0*Em)));
+        Ep = Ep + dEpdt*dt;
+        Em = Em + dEmdt*dt;
+        if(i % 200 == 0)
         {
             Eigen::Array<double, 5001, 1> y = (Pp + Pm).real();
-            ui->bigPlot->yAxis->setRange(y.minCoeff(), y.maxCoeff());
-            auto a = QVector<double>(x.data(),x.data() + x.size());
-            auto b = QVector<double>(y.data(),y.data() + y.size());
+            Eigen::Array<double, 5001, 1> y1 = (Em).real();
+            Eigen::Array<double, 5001, 1> y2 = (dEmdz).real();
+            t.push_back(i);
+            p.push_back(y.mean());
+            max = std::max(max,y.mean());
+            ui->bigPlot->yAxis->setRange(0, max);
+            ui->bigPlot->xAxis->setRange(0, i);
+            auto a = QVector<double>(t.data(), t.data() + t.size());
+            auto b = QVector<double>(p.data(), p.data() + p.size());
+            // auto c = QVector<double>(y1.data(), y1.data() + y1.size());
+            // auto d = QVector<double>(y2.data(), y2.data() + y2.size());
             ui->bigPlot->graph(0)->setData(a,b);
+
+            // ui->bigPlot->graph(1)->setData(a,c);
+            // ui->bigPlot->graph(2)->setData(a,d);
             ui->bigPlot->replot();
-            ui->bigPlot->update();
+            std::cout << i << " " << y.mean() << std::endl;
+
+            
         }
+        
 
 
     }
-    worker1.join();
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << " seconds\n";
