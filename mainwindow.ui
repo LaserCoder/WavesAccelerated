@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>818</width>
+    <width>1641</width>
     <height>748</height>
    </rect>
   </property>
@@ -14,7 +14,7 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QCustomPlot" name="bigPlot" native="true">
+   <widget class="QCustomPlot" name="leftPlot" native="true">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -27,8 +27,8 @@
    <widget class="QTabWidget" name="thing">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>529</y>
+      <x>430</x>
+      <y>530</y>
       <width>801</width>
       <height>171</height>
      </rect>
@@ -767,7 +767,7 @@
    <widget class="QPushButton" name="Simulate">
     <property name="geometry">
      <rect>
-      <x>360</x>
+      <x>770</x>
       <y>500</y>
       <width>89</width>
       <height>25</height>
@@ -777,13 +777,23 @@
      <string>Simulate</string>
     </property>
    </widget>
+   <widget class="QCustomPlot" name="rightPlot" native="true">
+    <property name="geometry">
+     <rect>
+      <x>830</x>
+      <y>10</y>
+      <width>801</width>
+      <height>481</height>
+     </rect>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>818</width>
+     <width>1641</width>
      <height>22</height>
     </rect>
    </property>

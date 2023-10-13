@@ -8,7 +8,7 @@
 #include <complex>
 #include <chrono>
 #include <thread>
-
+#include <fftw3.h>
 
 enum lineshape {Lorentzian, Parabolic};
 enum phi {Fundamental, HarmonicN, CosineN, Rand};
@@ -56,9 +56,9 @@ void refreshGraph(Ui::MainWindow* ui)
     Eigen::Array<double, 5001, 1> y = out.real();
     auto a = QVector<double>(x.data(),x.data() + x.size());
     auto b = QVector<double>(y.data(),y.data() + y.size());
-    ui->bigPlot->graph(0)->setData(a,b);
-    ui->bigPlot->replot();
-    ui->bigPlot->update();
+    ui->rightPlot->graph(0)->setData(a,b);
+    ui->rightPlot->replot();
+    ui->rightPlot->update();
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -78,13 +78,17 @@ MainWindow::~MainWindow()
 
 void MainWindow::makePlot()
 {
-    ui->bigPlot->addGraph();
-    // ui->bigPlot->addGraph();
-    // ui->bigPlot->addGraph();
-    ui->bigPlot->xAxis->setLabel("x");
-    ui->bigPlot->yAxis->setLabel("y");
-    ui->bigPlot->xAxis->setRange(0, 1);
-    ui->bigPlot->yAxis->setRange(-6e6,6e6 );
+    ui->rightPlot->addGraph();
+    ui->rightPlot->xAxis->setLabel("x");
+    ui->rightPlot->yAxis->setLabel("y");
+    ui->rightPlot->xAxis->setRange(0, 1);
+    ui->rightPlot->yAxis->setRange(-6e6,6e6 );
+
+    ui->leftPlot->addGraph();
+    ui->leftPlot->xAxis->setLabel("x");
+    ui->leftPlot->yAxis->setLabel("y");
+    ui->leftPlot->xAxis->setRange(0, 1);
+    ui->leftPlot->yAxis->setRange(-6e6,6e6 );
     std::cout << "Hello World!" << std::endl;
 }
 
@@ -92,7 +96,7 @@ std::complex<double> ii (0, 1.0);
 using Eigen::Array;
 void MainWindow::simulate()
 {
-
+      double J = sim_params.J;
 //    double R1 = sim_params.R1;
 //    double R2 = sim_params.R2;
 //    double c = 299792458;
@@ -136,12 +140,14 @@ void MainWindow::simulate()
     Array<std::complex<double>, 1 , 5001> dEmdt0;
     Array<std::complex<double>, 1 , 5001> dEpdt;
     Array<std::complex<double>, 1 , 5001> dEmdt;
+    Array<double, 1 , 5001> spectrum;
     double s = 501.;
     double k = 2;
     double max = 0;
     for(int x = 0; x < 5001; x++){
         Ep[x]= cos(2*M_PI*k/5001.*x*x/5001.);
         Em[x]= 0;
+        spectrum[x] = 0.;
     }
     std::vector<double> t,p;
     Eigen::ArrayXf x = Eigen::ArrayXf::LinSpaced(5001, 0, 1);
@@ -185,33 +191,50 @@ void MainWindow::simulate()
         if(i % 200 == 0)
         {
             Eigen::Array<double, 5001, 1> y = (Pp + Pm).real();
-            Eigen::Array<double, 5001, 1> y1 = (Em).real();
-            Eigen::Array<double, 5001, 1> y2 = (dEmdz).real();
             t.push_back(i);
             p.push_back(y.mean());
             max = std::max(max,y.mean());
-            ui->bigPlot->yAxis->setRange(0, max);
-            ui->bigPlot->xAxis->setRange(0, i);
+            ui->leftPlot->yAxis->setRange(0, max);
+            ui->leftPlot->xAxis->setRange(0, i);
             auto a = QVector<double>(t.data(), t.data() + t.size());
             auto b = QVector<double>(p.data(), p.data() + p.size());
-            // auto c = QVector<double>(y1.data(), y1.data() + y1.size());
-            // auto d = QVector<double>(y2.data(), y2.data() + y2.size());
-            ui->bigPlot->graph(0)->setData(a,b);
-
-            // ui->bigPlot->graph(1)->setData(a,c);
-            // ui->bigPlot->graph(2)->setData(a,d);
-            ui->bigPlot->replot();
+            ui->leftPlot->graph(0)->setData(a,b);
+            ui->leftPlot->replot();
             std::cout << i << " " << y.mean() << std::endl;
 
+
+            double N = 5001;
+            auto F  = J;
+            Array<std::complex<double>, 1 ,5001> y2;
+            fftw_complex *in, *out;
+            fftw_plan p;
+            in = (fftw_complex*) y.data();
+            out = (fftw_complex*) y2.data();
+            p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+            fftw_execute(p); /* repeat as needed */
+            fftw_destroy_plan(p);
+            spectrum =  spectrum + y2.real()/y2.real().maxCoeff();
+            auto a1 = QVector<double>(x.data(), x.data() + x.size());
+            auto b1 = QVector<double>(spectrum.data(), spectrum.data() + spectrum.size());
+            ui->rightPlot->yAxis->setRange(0,100);
+            ui->rightPlot->xAxis->setRange(-.010,0.02);
+            ui->rightPlot->graph(0)->setData(a1,b1);
+            ui->rightPlot->replot();
+            std::cout << y1 << std::endl;
             
         }
         
-
 
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << " seconds\n";
+
+
+
+
+
+
 }
 
 void printParams() {
