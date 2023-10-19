@@ -21,6 +21,7 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
-    void simulate();
+    std::vector<double> simulate();
+    void run();
 };
 #endif // MAINWINDOW_H

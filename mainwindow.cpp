@@ -81,36 +81,17 @@ void MainWindow::makePlot()
     ui->rightPlot->addGraph();
     ui->rightPlot->xAxis->setLabel("x");
     ui->rightPlot->yAxis->setLabel("y");
-    ui->rightPlot->xAxis->setRange(0, 1);
-    ui->rightPlot->yAxis->setRange(-6e6,6e6 );
 
     ui->leftPlot->addGraph();
     ui->leftPlot->xAxis->setLabel("x");
     ui->leftPlot->yAxis->setLabel("y");
-    ui->leftPlot->xAxis->setRange(0, 1);
-    ui->leftPlot->yAxis->setRange(-6e6,6e6 );
     std::cout << "Hello World!" << std::endl;
 }
-
 std::complex<double> ii (0, 1.0);
 using Eigen::Array;
-void MainWindow::simulate()
-{
-      double J = sim_params.J;
-//    double R1 = sim_params.R1;
-//    double R2 = sim_params.R2;
-//    double c = 299792458;
-//    double n = sim_params.n;
-//    double kpp = sim_params.kpp;
-//    double aw = sim_params.aw;
-//    double gammaK = sim_params.gammaK;
-//    double g0 = 819.429;
-//    double gc = sim_params.gc;
-//    double T1 = sim_params.T1;
-//    double T2 = sim_params.T2;
-//    double dz =  8.0000e-07;
-//    double dt = 8.8061e-15;
-//    double Psat = 8.189848267404146e+12;
+std::vector<double> MainWindow::simulate(){
+    double J = sim_params.J;
+    std::vector<double> power_out;
     auto start = std::chrono::high_resolution_clock::now();
     double R1 = 0.09;
     double R2 = 1;
@@ -151,7 +132,7 @@ void MainWindow::simulate()
     }
     std::vector<double> t,p;
     Eigen::ArrayXf x = Eigen::ArrayXf::LinSpaced(5001, 0, 1);
-    for(int i = 1; i < 5'000'000 ; i++)
+    for(int i = 1; i < 500'000 ; i++)
     {
         Pp = Ep.abs().pow(2);
         Pm = Em.abs().pow(2);
@@ -188,54 +169,39 @@ void MainWindow::simulate()
                      1/Psat*((2*T1+3*T2)*dEpdt0.conjugate()*Ep*Em + (T1+5/2.*T2)*Ep.conjugate()*dEpdt0*Em)));
         Ep = Ep + dEpdt*dt;
         Em = Em + dEmdt*dt;
-        if(i % 200 == 0)
+        if(i % 10 == 0)
         {
-            Eigen::Array<double, 5001, 1> y = (Pp + Pm).real();
-            t.push_back(i);
-            p.push_back(y.mean());
-            max = std::max(max,y.mean());
-            ui->leftPlot->yAxis->setRange(0, max);
-            ui->leftPlot->xAxis->setRange(0, i);
-            auto a = QVector<double>(t.data(), t.data() + t.size());
-            auto b = QVector<double>(p.data(), p.data() + p.size());
-            ui->leftPlot->graph(0)->setData(a,b);
-            ui->leftPlot->replot();
-            std::cout << i << " " << y.mean() << std::endl;
-
-
-            double N = 5001;
-            auto F  = J;
-            Array<std::complex<double>, 1 ,5001> y2;
-            fftw_complex *in, *out;
-            fftw_plan p;
-            in = (fftw_complex*) y.data();
-            out = (fftw_complex*) y2.data();
-            p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-            fftw_execute(p); /* repeat as needed */
-            fftw_destroy_plan(p);
-            spectrum =  spectrum + y2.real()/y2.real().maxCoeff();
-            auto a1 = QVector<double>(x.data(), x.data() + x.size());
-            auto b1 = QVector<double>(spectrum.data(), spectrum.data() + spectrum.size());
-            ui->rightPlot->yAxis->setRange(0,100);
-            ui->rightPlot->xAxis->setRange(-.010,0.02);
-            ui->rightPlot->graph(0)->setData(a1,b1);
-            ui->rightPlot->replot();
-            std::cout << y1 << std::endl;
-            
+            power_out.push_back((Pp+Pm).real().mean());
         }
-        
-
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << " seconds\n";
-
-
-
-
-
-
+    return power_out;
 }
+
+
+
+
+
+void MainWindow::run()
+{
+    std::vector<double> y = MainWindow::simulate();
+    std::vector<double> t;
+    for(int i  = 0; i < y.size(); i+=1)t.push_back(i);
+    auto a = QVector<double>(t.data(),t.data() + t.size());
+    auto b = QVector<double>(y.data(),y.data() + y.size());
+    ui->rightPlot->xAxis->setRange(0, y.size());
+    ui->rightPlot->yAxis->setRange(0., *std::max_element(y.begin(), y.end()));
+    ui->rightPlot->graph(0)->setData(a,b);
+    ui->rightPlot->replot();
+    ui->rightPlot->update();
+}
+
+
+
+
+
 
 void printParams() {
     std::cout << "J: " << sim_params.J << std::endl;
@@ -297,5 +263,5 @@ void MainWindow::on_Simulate_clicked()
     sim_params.plottheory = ui->plottheory->isChecked();
     sim_params.shifttomin = ui->shifttomin->isChecked();
     printParams();
-    simulate();
+    run();
 }

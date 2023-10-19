@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(NUFOSAleph VERSION 0.1 LANGUAGES CXX)
-
+project(NUFOSAleph VERSION 0.1 LANGUAGES CUDA CXX)
+enable_language(CUDA)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,7 +16,6 @@ set(CMAKE_PREFIX_PATH "/home/m3litaha/Qt/6.5.3/gcc_64/lib/cmake")
 find_package(QT NAMES Qt6 Qt5  COMPONENTS Widgets PrintSupport REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets PrintSupport)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-
 set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
@@ -23,6 +23,7 @@ set(PROJECT_SOURCES
         mainwindow.ui
         qcustomplot.cpp
         qcustomplot.h
+        kernel.cu
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -49,7 +50,8 @@ else()
         )
     endif()
 endif()
-
+set_target_properties(NUFOSAleph PROPERTIES CUDA_ARCHITECTURES 86)
+set_target_properties(NUFOSAleph PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(NUFOSAleph PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::PrintSupport Eigen3::Eigen)
 target_link_libraries(NUFOSAleph PRIVATE fftw3)
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
